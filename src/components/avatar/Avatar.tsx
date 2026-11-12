@@ -34,7 +34,7 @@ export const Avatar: React.FC<AvatarProps> = ({
   colorSecondary = '#ffc83d',
   colorHot = '#fff1b8',
   speed = 1.0,
-  bloomIntensity = 1.8,
+  bloomIntensity = 1.2,
   particleCount = 400,
   intro = true,
   interactive = true,
@@ -77,8 +77,8 @@ export const Avatar: React.FC<AvatarProps> = ({
             }}
           />
           
-          {/* FOV 35, distance 5.1 -> sphere (r=1.0) fills ~60% of viewport height */}
-          <PerspectiveCamera makeDefault position={[0, 0, 5.1]} fov={35} />
+          {/* Large, imposing sphere filling ~85% of viewport height */}
+          <PerspectiveCamera makeDefault position={[0, 0, 3.2]} fov={45} />
           
           <color attach="background" args={['#070a1c']} />
           
@@ -153,13 +153,15 @@ const AvatarScene: React.FC<AvatarSceneProps> = ({
       const t = shellCount > 1 ? i / (shellCount - 1) : 0.5;
       const radius = 0.30 + t * 0.70; // 0.30 to 1.00
 
-      // Very slow group-level rotation for organic feel;
-      // per-cluster spin is handled by the vertex shader
-      const rotationSpeed = (0.005 + i * 0.003) * speed * (i % 2 === 0 ? 1 : -1);
+      // Active 3D counter-rotation per shell
+      const rotationSpeed = (0.12 + i * 0.04) * speed * (i % 2 === 0 ? 1 : -1);
+      // Spread axes across varied 3D orientations for true gyroscopic counter-rotation
+      const tiltAngle = (i / (shellCount - 1)) * (Math.PI * 0.75) + 0.2;
+      const yaw       = i * 2.399; // golden angle spread
       const axis = new THREE.Vector3(
-        Math.sin(i * 1.1),
-        Math.cos(i * 0.7),
-        Math.sin(i * 2.3),
+        Math.sin(tiltAngle) * Math.cos(yaw),
+        Math.cos(tiltAngle),
+        Math.sin(tiltAngle) * Math.sin(yaw),
       ).normalize();
       shellData.push({ radius, rotationSpeed, axis });
     }

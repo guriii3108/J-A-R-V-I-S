@@ -92,7 +92,7 @@ export const HologramPage: React.FC = () => {
             colorSecondary="#ffc83d"
             colorHot="#fff1b8"
             speed={1.0}
-            bloomIntensity={2.2}
+            bloomIntensity={1.0}
             particleCount={400}
             intro={showIntro}
             interactive={true}

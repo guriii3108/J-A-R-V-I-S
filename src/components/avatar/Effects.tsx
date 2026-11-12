@@ -53,17 +53,19 @@ export const Effects: React.FC<EffectsProps> = ({
   let effectiveBloomIntensity = bloomIntensity;
   
   if (state === 'listening') {
-    effectiveBloomIntensity = bloomIntensity * 1.1;
+    effectiveBloomIntensity = bloomIntensity * 1.15;
   } else if (state === 'speaking') {
-    effectiveBloomIntensity = bloomIntensity * (1 + amplitude * 0.3);
+    effectiveBloomIntensity = bloomIntensity * (1 + amplitude * 0.4);
+  } else if (state === 'thinking') {
+    effectiveBloomIntensity = bloomIntensity * 1.3;
   }
   
   return (
     <EffectComposer>
       <Bloom
         intensity={effectiveBloomIntensity}
-        luminanceThreshold={0.2}
-        luminanceSmoothing={0.9}
+        luminanceThreshold={0.48}
+        luminanceSmoothing={0.50}
         mipmapBlur
       />
       <Vignette

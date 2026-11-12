@@ -40,31 +40,31 @@ export const Core: React.FC<CoreProps> = ({
     pointsRef.current.rotation.x = Math.sin(time * 0.3) * 0.1;
     
     // State-based behavior
-    let targetSize = 0.02;
-    let targetOpacity = 0.8;
+    let targetSize = 0.005;
+    let targetOpacity = 0.30;
     let colorMix = 0;
     
     switch (state) {
       case 'listening':
-        targetSize = 0.025;
-        targetOpacity = 1.0;
+        targetSize = 0.010;
+        targetOpacity = 0.65;
         colorMix = 0.3;
         // Pulse with amplitude
-        const listenPulse = Math.sin(time * 8 + amplitude * 10) * 0.003;
+        const listenPulse = Math.sin(time * 8 + amplitude * 10) * 0.002;
         targetSize += listenPulse;
         break;
         
       case 'thinking':
-        targetSize = 0.018;
-        targetOpacity = 0.9;
+        targetSize = 0.007;
+        targetOpacity = 0.60;
         colorMix = 0.6;
         // Faster rotation
         pointsRef.current.rotation.y += delta * 0.3;
         break;
         
       case 'speaking':
-        targetSize = 0.02 + amplitude * 0.01;
-        targetOpacity = 0.8 + amplitude * 0.2;
+        targetSize = 0.008 + amplitude * 0.005;
+        targetOpacity = 0.45 + amplitude * 0.2;
         colorMix = amplitude * 0.5;
         break;
     }
@@ -87,9 +87,9 @@ export const Core: React.FC<CoreProps> = ({
       <pointsMaterial
         ref={materialRef}
         color={color}
-        size={0.02}
+        size={0.008}
         transparent
-        opacity={0.8}
+        opacity={0.45}
         depthWrite={false}
         blending={THREE.AdditiveBlending}
         sizeAttenuation

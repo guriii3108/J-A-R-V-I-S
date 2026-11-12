@@ -168,9 +168,9 @@ export const Sparks: React.FC<SparksProps> = ({
       <pointsMaterial
         ref={materialRef}
         vertexColors
-        size={0.015}
+        size={0.009}
         transparent
-        opacity={0.7}
+        opacity={0.45}
         depthWrite={false}
         blending={THREE.AdditiveBlending}
         sizeAttenuation
