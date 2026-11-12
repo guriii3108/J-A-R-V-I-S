@@ -9,11 +9,11 @@ import { Sparks } from './Sparks';
 import { Effects } from './Effects';
 import { useAvatar } from '../../lib/useAvatar';
 import { easeOutCubic } from '../../lib/easing';
-import type { AvatarState } from '../../lib/useAvatar';
 
 interface AvatarProps {
   seed?: number;
   shellCount?: number;
+  stage?: number;
   colorPrimary?: string;
   colorSecondary?: string;
   colorHot?: string;
@@ -28,16 +28,17 @@ interface AvatarProps {
 
 export const Avatar: React.FC<AvatarProps> = ({
   seed = 12345,
-  shellCount = 6,
-  colorPrimary = '#ff9d1a',
-  colorSecondary = '#ffd36b',
-  colorHot = '#fff3c4',
+  shellCount = 7,
+  stage = 5,
+  colorPrimary = '#ff8a00',
+  colorSecondary = '#ffc83d',
+  colorHot = '#fff1b8',
   speed = 1.0,
-  bloomIntensity = 1.2,
+  bloomIntensity = 1.8,
   particleCount = 400,
   intro = true,
   interactive = true,
-  audioSource = null,
+  audioSource: _audioSource = null,
   className = '',
 }) => {
   const [dpr, setDpr] = useState(1.5);
@@ -76,13 +77,15 @@ export const Avatar: React.FC<AvatarProps> = ({
             }}
           />
           
-          <PerspectiveCamera makeDefault position={[0, 0, 4]} fov={50} />
+          {/* FOV 35, distance 5.1 -> sphere (r=1.0) fills ~60% of viewport height */}
+          <PerspectiveCamera makeDefault position={[0, 0, 5.1]} fov={35} />
           
-          <color attach="background" args={['#050b14']} />
+          <color attach="background" args={['#070a1c']} />
           
           <AvatarScene
             seed={seed}
             shellCount={shellCount}
+            stage={stage}
             colorPrimary={colorPrimary}
             colorSecondary={colorSecondary}
             colorHot={colorHot}
@@ -103,6 +106,7 @@ export const Avatar: React.FC<AvatarProps> = ({
 interface AvatarSceneProps {
   seed: number;
   shellCount: number;
+  stage: number;
   colorPrimary: string;
   colorSecondary: string;
   colorHot: string;
@@ -116,6 +120,7 @@ interface AvatarSceneProps {
 const AvatarScene: React.FC<AvatarSceneProps> = ({
   seed,
   shellCount,
+  stage,
   colorPrimary,
   colorSecondary,
   colorHot,
@@ -141,23 +146,25 @@ const AvatarScene: React.FC<AvatarSceneProps> = ({
   
   // Generate shell configuration
   const shells = useMemo(() => {
-    const baseRadius = 0.8;
+    // 6-8 shells, radii 0.30 to 1.00
+    // The outermost shell forms a clear circular silhouette
     const shellData = [];
-    
     for (let i = 0; i < shellCount; i++) {
-      const radius = baseRadius + i * 0.25;
-      const rotationSpeed = (0.02 + i * 0.03) * speed * (i % 2 === 0 ? 1 : -1);
+      const t = shellCount > 1 ? i / (shellCount - 1) : 0.5;
+      const radius = 0.30 + t * 0.70; // 0.30 to 1.00
+
+      // Very slow group-level rotation for organic feel;
+      // per-cluster spin is handled by the vertex shader
+      const rotationSpeed = (0.005 + i * 0.003) * speed * (i % 2 === 0 ? 1 : -1);
       const axis = new THREE.Vector3(
-        Math.sin(i * 0.5),
+        Math.sin(i * 1.1),
         Math.cos(i * 0.7),
-        Math.sin(i * 1.3)
+        Math.sin(i * 2.3),
       ).normalize();
-      
       shellData.push({ radius, rotationSpeed, axis });
     }
-    
     return shellData;
-  }, [shellCount, speed, seed]);
+  }, [shellCount, speed]);
   
   const shellRadii = useMemo(() => shells.map(s => s.radius), [shells]);
   
@@ -244,7 +251,7 @@ const AvatarScene: React.FC<AvatarSceneProps> = ({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [interactive, pulse]);
   
-  useFrame((state, delta) => {
+  useFrame((_state, delta) => {
     if (!groupRef.current) return;
     
     const speedMult = reducedMotion ? 0.2 : 1.0;
@@ -294,7 +301,7 @@ const AvatarScene: React.FC<AvatarSceneProps> = ({
       let closestPoint: THREE.Vector3 | null = null;
       let closestDist = Infinity;
       
-      shells.forEach((shell, i) => {
+      shells.forEach((shell) => {
         const sphere = new THREE.Sphere(new THREE.Vector3(0, 0, 0), shell.radius);
         const intersectionPoint = new THREE.Vector3();
         
@@ -323,7 +330,7 @@ const AvatarScene: React.FC<AvatarSceneProps> = ({
   });
   
   return (
-    <group ref={groupRef} tabIndex={0} aria-label="JARVIS holographic avatar">
+    <group ref={groupRef} aria-label="JARVIS holographic avatar">
       {/* Background elements */}
       <BackgroundPanels />
       
@@ -339,11 +346,12 @@ const AvatarScene: React.FC<AvatarSceneProps> = ({
       {shells.map((shell, i) => (
         <Shell
           key={i}
-          ref={(ref) => (shellRefs.current[i] = ref)}
+          ref={(ref) => { shellRefs.current[i] = ref; }}
           radius={shell.radius}
           shellIndex={i}
           totalShells={shellCount}
           seed={seed}
+          stage={stage}
           colorPrimary={colorPrimary}
           colorSecondary={colorSecondary}
           colorHot={colorHot}
@@ -368,19 +376,36 @@ const AvatarScene: React.FC<AvatarSceneProps> = ({
 const BackgroundPanels: React.FC = () => {
   return (
     <group>
-      <mesh position={[-3, 2, -5]} rotation={[0, 0.3, 0]}>
-        <planeGeometry args={[2, 3]} />
-        <meshBasicMaterial color="#0a1828" transparent opacity={0.3} />
+      {/* Large blurred blue/purple glass panels at different depths */}
+      {/* Left panel */}
+      <mesh position={[-3.2, 0.5, -6]} rotation={[0, 0.25, 0]}>
+        <planeGeometry args={[2.5, 5]} />
+        <meshBasicMaterial color="#1a2060" transparent opacity={0.18} />
       </mesh>
-      
-      <mesh position={[3, -1, -6]} rotation={[0, -0.4, 0]}>
-        <planeGeometry args={[1.5, 2.5]} />
-        <meshBasicMaterial color="#0a2040" transparent opacity={0.25} />
+      {/* Right panel */}
+      <mesh position={[3.0, -0.5, -7]} rotation={[0, -0.3, 0]}>
+        <planeGeometry args={[2.0, 4.5]} />
+        <meshBasicMaterial color="#2a0a4a" transparent opacity={0.15} />
       </mesh>
-      
-      <mesh position={[0, 0, -8]}>
-        <planeGeometry args={[10, 10]} />
-        <meshBasicMaterial color="#050b14" transparent opacity={0.8} />
+      {/* Center far panel */}
+      <mesh position={[0.5, 1.0, -9]}>
+        <planeGeometry args={[3.0, 5.0]} />
+        <meshBasicMaterial color="#0d1540" transparent opacity={0.20} />
+      </mesh>
+      {/* Accent panel upper-right */}
+      <mesh position={[2.0, 2.5, -5]} rotation={[0, -0.15, 0.05]}>
+        <planeGeometry args={[1.2, 3.0]} />
+        <meshBasicMaterial color="#150828" transparent opacity={0.22} />
+      </mesh>
+      {/* Faint reflective floor line */}
+      <mesh position={[0, -1.6, -4]} rotation={[-Math.PI / 2, 0, 0]}>
+        <planeGeometry args={[6, 2]} />
+        <meshBasicMaterial color="#1a3060" transparent opacity={0.08} />
+      </mesh>
+      {/* Far background gradient fill */}
+      <mesh position={[0, 0, -10]}>
+        <planeGeometry args={[20, 15]} />
+        <meshBasicMaterial color="#070a1c" transparent opacity={0.95} />
       </mesh>
     </group>
   );

@@ -8,6 +8,7 @@ export const HologramPage: React.FC = () => {
   const [micEnabled, setMicEnabled] = useState(false);
   const [useSimulated, setUseSimulated] = useState(false);
   const [showIntro, setShowIntro] = useState(true);
+  const [stage, setStage] = useState<number>(5);
   const introKey = useRef(0);
   
   // Audio level hooks
@@ -83,14 +84,15 @@ export const HologramPage: React.FC = () => {
         {/* Avatar Canvas */}
         <div className="flex-1 relative">
           <Avatar
-            key={introKey.current}
+            key={`${introKey.current}-stage-${stage}`}
             seed={12345}
-            shellCount={6}
-            colorPrimary="#ff9d1a"
-            colorSecondary="#ffd36b"
-            colorHot="#fff3c4"
+            shellCount={7}
+            stage={stage}
+            colorPrimary="#ff8a00"
+            colorSecondary="#ffc83d"
+            colorHot="#fff1b8"
             speed={1.0}
-            bloomIntensity={1.2}
+            bloomIntensity={2.2}
             particleCount={400}
             intro={showIntro}
             interactive={true}
@@ -113,6 +115,39 @@ export const HologramPage: React.FC = () => {
         {/* Control Panel */}
         <div className="w-80 bg-black/70 backdrop-blur-sm border-l border-hologram-primary/20 p-6 overflow-y-auto">
           <div className="space-y-6">
+            {/* Pipeline Stage Controls */}
+            <div>
+              <h2 className="text-lg font-semibold text-hologram-primary mb-2">
+                Pipeline Stage
+              </h2>
+              <p className="text-xs text-hologram-secondary/70 mb-3">
+                Switch stages to isolate & verify rendering layers
+              </p>
+              <div className="space-y-1.5">
+                {[
+                  { num: 1, label: 'Stage 1: Static Rings (LineBasic)' },
+                  { num: 2, label: 'Stage 2: 25k-50k Ticks & Arcs' },
+                  { num: 3, label: 'Stage 3: GPU Rodrigues Rotation' },
+                  { num: 4, label: 'Stage 4: Trails, Gradient, Depth' },
+                  { num: 5, label: 'Stage 5: Full JARVIS (Interactive)' },
+                ].map(({ num, label }) => (
+                  <button
+                    key={num}
+                    onClick={() => setStage(num)}
+                    className={`
+                      w-full text-left text-xs px-3 py-2 rounded-lg font-medium transition-all
+                      ${stage === num
+                        ? 'bg-hologram-primary text-black font-bold shadow-md shadow-hologram-primary/40'
+                        : 'bg-hologram-primary/10 text-hologram-secondary hover:bg-hologram-primary/20 border border-hologram-primary/25'
+                      }
+                    `}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
             {/* State Controls */}
             <div>
               <h2 className="text-lg font-semibold text-hologram-primary mb-3">

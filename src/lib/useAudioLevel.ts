@@ -73,7 +73,7 @@ export const useAudioLevel = (
         const analyze = () => {
           if (!analyserRef.current || !dataArrayRef.current) return;
 
-          analyserRef.current.getByteTimeDomainData(dataArrayRef.current);
+          analyserRef.current.getByteTimeDomainData(dataArrayRef.current as any);
 
           // Calculate RMS (Root Mean Square)
           let sum = 0;

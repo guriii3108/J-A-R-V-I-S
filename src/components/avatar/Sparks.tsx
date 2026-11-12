@@ -182,8 +182,8 @@ export const Sparks: React.FC<SparksProps> = ({
 function createSpark(
   rng: SeededRandom,
   shellRadii: number[],
-  color1: THREE.Color,
-  color2: THREE.Color
+  _color1: THREE.Color,
+  _color2: THREE.Color
 ): SparkData {
   // Spawn on a random shell edge
   const shellRadius = shellRadii[rng.int(0, shellRadii.length - 1)];
