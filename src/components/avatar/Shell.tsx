@@ -58,6 +58,15 @@ export const Shell = forwardRef<THREE.LineSegments, ShellProps>((
   // Liveness: target multiplier driven by state
   const livenessTarget = useRef(1.0);
   const livenessVal    = useRef(1.0);
+  // ── Dissolve / Reform cycle ──────────────────────────────────────────────
+  // Inner shells dissolve before outer shells (peeling effect).
+  // Phase: 'idle' → 'out' (1.8s) → 'hold' (0.5s) → 'in' (2.2s) → 'idle'
+  type DPhase = 'idle' | 'out' | 'hold' | 'in';
+  const dissolvePhase = useRef<DPhase>('idle');
+  const dissolveVal   = useRef(0.0);
+  const dissolveClock = useRef(0.0);
+  // Stagger: inner shells dissolve first; also vary per-shell for variety
+  const nextDissolve  = useRef(12 + shellIndex * 1.8 + Math.random() * 6);
 
   const geometry = useMemo(() => {
     return generateShellGeometry(radius, shellIndex, totalShells, seed, stage);
@@ -81,6 +90,7 @@ export const Shell = forwardRef<THREE.LineSegments, ShellProps>((
     uHeartbeat:            { value: 0.0 },
     uLiveness:             { value: 1.0 },
     uShellIndex:           { value: shellIndex },
+    uDissolve:             { value: 0.0 },
   }), [colorPrimary, colorSecondary, colorHot, displacementStrength, stage, shellIndex]);
 
   // Sync pulses → uniforms
@@ -162,9 +172,34 @@ export const Shell = forwardRef<THREE.LineSegments, ShellProps>((
         break;
     }
 
+    // ── Dissolve / Reform state machine ────────────────────────────────────────
+    dissolveClock.current += delta;
+    if (dissolvePhase.current === 'idle') {
+      if (dissolveClock.current >= nextDissolve.current) {
+        dissolvePhase.current = 'out';
+        dissolveClock.current = 0;
+      }
+    } else if (dissolvePhase.current === 'out') {
+      dissolveVal.current = Math.min(1.0, dissolveClock.current / 1.8);
+      if (dissolveVal.current >= 1.0) { dissolvePhase.current = 'hold'; dissolveClock.current = 0; }
+    } else if (dissolvePhase.current === 'hold') {
+      if (dissolveClock.current >= 0.45 + shellIndex * 0.08) {
+        dissolvePhase.current = 'in'; dissolveClock.current = 0;
+      }
+    } else {
+      dissolveVal.current = Math.max(0.0, 1.0 - dissolveClock.current / 2.2);
+      if (dissolveVal.current <= 0.0) {
+        dissolvePhase.current = 'idle'; dissolveClock.current = 0;
+        nextDissolve.current = 10 + Math.random() * 14 + shellIndex * 1.5;
+      }
+    }
+    uniforms.uDissolve.value = THREE.MathUtils.lerp(uniforms.uDissolve.value, dissolveVal.current, delta * 6);
+
     // Add heartbeat "pop": sphere expands outward on each beat
     const hbPop = heartbeatVal.current * 0.05 * (1 - shellIndex / (totalShells * 1.4));
-    const targetScale = breathe * stateScale + hbPop;
+    // During dissolve, shell expands slightly (data dispersing)
+    const dissolvePop = dissolveVal.current * 0.06 * (1 - shellIndex * 0.08);
+    const targetScale = breathe * stateScale + hbPop + dissolvePop;
 
     rotationSpeed.current = THREE.MathUtils.lerp(
       rotationSpeed.current,
@@ -198,6 +233,7 @@ export const Shell = forwardRef<THREE.LineSegments, ShellProps>((
       shaderMatRef.current.uniforms.uLiveness.value = uniforms.uLiveness.value;
       shaderMatRef.current.uniforms.uGlowIntensity.value = uniforms.uGlowIntensity.value;
       shaderMatRef.current.uniforms.uHoverStrength.value = uniforms.uHoverStrength.value;
+      shaderMatRef.current.uniforms.uDissolve.value      = uniforms.uDissolve.value;
     }
   });
 

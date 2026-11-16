@@ -34,7 +34,7 @@ export const Avatar: React.FC<AvatarProps> = ({
   colorSecondary = '#ffc83d',
   colorHot = '#fff1b8',
   speed = 1.0,
-  bloomIntensity = 1.2,
+  bloomIntensity = 0.7,
   particleCount = 400,
   intro = true,
   interactive = true,
@@ -77,8 +77,13 @@ export const Avatar: React.FC<AvatarProps> = ({
             }}
           />
           
-          {/* Large, imposing sphere filling ~85% of viewport height */}
-          <PerspectiveCamera makeDefault position={[0, 0, 3.2]} fov={45} />
+          {/* Sphere fills ~60% of viewport height; 8° downward tilt */}
+          <PerspectiveCamera
+            makeDefault
+            position={[0, 0.736, 5.236]}
+            rotation={[-8 * Math.PI / 180, 0, 0]}
+            fov={35}
+          />
           
           <color attach="background" args={['#070a1c']} />
           
@@ -332,10 +337,9 @@ const AvatarScene: React.FC<AvatarSceneProps> = ({
   });
   
   return (
+    <>
+    <BackgroundPanels />
     <group ref={groupRef} aria-label="JARVIS holographic avatar">
-      {/* Background elements */}
-      <BackgroundPanels />
-      
       {/* Core */}
       <Core
         seed={seed}
@@ -372,42 +376,102 @@ const AvatarScene: React.FC<AvatarSceneProps> = ({
         shellRadii={shellRadii}
       />
     </group>
+    </>
+  );
+};
+
+const BG_VERT = /* glsl */`
+varying vec2 vUv;
+void main() {
+  vUv = uv;
+  gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+}
+`;
+
+const GRADIENT_FRAG = /* glsl */`
+varying vec2 vUv;
+void main() {
+  vec3 navy = vec3(0.027, 0.039, 0.110); // #070a1c
+  vec3 violet = vec3(0.078, 0.039, 0.180); // #140a2e
+  float g = smoothstep(0.0, 1.0, vUv.y);
+  float radial = 1.0 - smoothstep(0.15, 0.95, length(vUv - vec2(0.5, 0.42)));
+  vec3 col = mix(navy, violet, g * 0.85 + radial * 0.15);
+  gl_FragColor = vec4(col, 1.0);
+}
+`;
+
+const GLASS_FRAG = /* glsl */`
+uniform vec3 uColor;
+uniform float uOpacity;
+varying vec2 vUv;
+void main() {
+  vec2 p = vUv - 0.5;
+  vec2 q = abs(p);
+  float box = 1.0 - smoothstep(0.22, 0.50, max(q.x * 1.05, q.y * 0.72));
+  float glow = exp(-12.0 * dot(p, p));
+  float alpha = uOpacity * max(box, glow * 0.45);
+  gl_FragColor = vec4(uColor, alpha);
+}
+`;
+
+const FLOOR_FRAG = /* glsl */`
+varying vec2 vUv;
+void main() {
+  vec2 p = vUv - vec2(0.5, 0.38);
+  float radial = 1.0 - smoothstep(0.0, 0.55, length(p * vec2(1.0, 1.35)));
+  float fade = smoothstep(0.0, 0.25, vUv.y) * (1.0 - smoothstep(0.55, 1.0, vUv.y));
+  vec3 cool = mix(vec3(0.04, 0.10, 0.28), vec3(0.18, 0.38, 0.78), radial);
+  gl_FragColor = vec4(cool, (0.10 + 0.22 * radial) * fade);
+}
+`;
+
+const GlassPanel: React.FC<{
+  position: [number, number, number];
+  rotation?: [number, number, number];
+  size: [number, number];
+  color: string;
+  opacity: number;
+}> = ({ position, rotation = [0, 0, 0], size, color, opacity }) => {
+  const uniforms = useMemo(() => ({
+    uColor: { value: new THREE.Color(color) },
+    uOpacity: { value: opacity },
+  }), [color, opacity]);
+
+  return (
+    <mesh position={position} rotation={rotation}>
+      <planeGeometry args={size} />
+      <shaderMaterial
+        vertexShader={BG_VERT}
+        fragmentShader={GLASS_FRAG}
+        uniforms={uniforms}
+        transparent
+        depthWrite={false}
+        blending={THREE.NormalBlending}
+      />
+    </mesh>
   );
 };
 
 const BackgroundPanels: React.FC = () => {
   return (
     <group>
-      {/* Large blurred blue/purple glass panels at different depths */}
-      {/* Left panel */}
-      <mesh position={[-3.2, 0.5, -6]} rotation={[0, 0.25, 0]}>
-        <planeGeometry args={[2.5, 5]} />
-        <meshBasicMaterial color="#1a2060" transparent opacity={0.18} />
+      <mesh position={[0, 0, -14]}>
+        <planeGeometry args={[40, 28]} />
+        <shaderMaterial vertexShader={BG_VERT} fragmentShader={GRADIENT_FRAG} depthWrite={false} />
       </mesh>
-      {/* Right panel */}
-      <mesh position={[3.0, -0.5, -7]} rotation={[0, -0.3, 0]}>
-        <planeGeometry args={[2.0, 4.5]} />
-        <meshBasicMaterial color="#2a0a4a" transparent opacity={0.15} />
-      </mesh>
-      {/* Center far panel */}
-      <mesh position={[0.5, 1.0, -9]}>
-        <planeGeometry args={[3.0, 5.0]} />
-        <meshBasicMaterial color="#0d1540" transparent opacity={0.20} />
-      </mesh>
-      {/* Accent panel upper-right */}
-      <mesh position={[2.0, 2.5, -5]} rotation={[0, -0.15, 0.05]}>
-        <planeGeometry args={[1.2, 3.0]} />
-        <meshBasicMaterial color="#150828" transparent opacity={0.22} />
-      </mesh>
-      {/* Faint reflective floor line */}
-      <mesh position={[0, -1.6, -4]} rotation={[-Math.PI / 2, 0, 0]}>
-        <planeGeometry args={[6, 2]} />
-        <meshBasicMaterial color="#1a3060" transparent opacity={0.08} />
-      </mesh>
-      {/* Far background gradient fill */}
-      <mesh position={[0, 0, -10]}>
-        <planeGeometry args={[20, 15]} />
-        <meshBasicMaterial color="#070a1c" transparent opacity={0.95} />
+      <GlassPanel position={[-4.2, 0.6, -7.5]} rotation={[0, 0.32, 0]} size={[5.2, 8.5]} color="#2a3cff" opacity={0.36} />
+      <GlassPanel position={[4.4, -0.4, -9.0]} rotation={[0, -0.38, 0]} size={[4.6, 7.8]} color="#7a3cff" opacity={0.32} />
+      <GlassPanel position={[0.4, 1.4, -11.5]} rotation={[0, 0.08, 0]} size={[6.5, 9.0]} color="#2a3cff" opacity={0.28} />
+      <GlassPanel position={[2.6, 2.8, -6.2]} rotation={[0, -0.18, 0.06]} size={[3.4, 5.4]} color="#7a3cff" opacity={0.26} />
+      <mesh position={[0, -1.28, -1.2]} rotation={[-Math.PI / 2, 0, 0]}>
+        <planeGeometry args={[10, 8]} />
+        <shaderMaterial
+          vertexShader={BG_VERT}
+          fragmentShader={FLOOR_FRAG}
+          transparent
+          depthWrite={false}
+          blending={THREE.NormalBlending}
+        />
       </mesh>
     </group>
   );

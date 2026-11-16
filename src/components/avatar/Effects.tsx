@@ -11,7 +11,7 @@ interface EffectsProps {
 }
 
 export const Effects: React.FC<EffectsProps> = ({
-  bloomIntensity = 1.2,
+  bloomIntensity = 0.7,
   reducedMotion = false,
 }) => {
   const chromaticAberrationRef = useRef<any>(null);
@@ -49,23 +49,25 @@ export const Effects: React.FC<EffectsProps> = ({
     chromaticAberrationRef.current.offset.set(newX, newY);
   });
   
-  // Adjust bloom based on state
-  let effectiveBloomIntensity = bloomIntensity;
+  // Spec range 0.6–0.8. Clamp inherited 1.0/1.2 props so the sphere stays amber.
+  const baseBloom = Math.min(0.8, Math.max(0.6, bloomIntensity > 0.8 ? 0.7 : bloomIntensity));
+  let effectiveBloomIntensity = baseBloom;
   
   if (state === 'listening') {
-    effectiveBloomIntensity = bloomIntensity * 1.15;
+    effectiveBloomIntensity = baseBloom * 1.15;
   } else if (state === 'speaking') {
-    effectiveBloomIntensity = bloomIntensity * (1 + amplitude * 0.4);
+    effectiveBloomIntensity = baseBloom * (1 + amplitude * 0.4);
   } else if (state === 'thinking') {
-    effectiveBloomIntensity = bloomIntensity * 1.3;
+    effectiveBloomIntensity = baseBloom * 1.3;
   }
+  effectiveBloomIntensity = Math.min(0.8, effectiveBloomIntensity);
   
   return (
     <EffectComposer>
       <Bloom
         intensity={effectiveBloomIntensity}
-        luminanceThreshold={0.48}
-        luminanceSmoothing={0.50}
+        luminanceThreshold={0.62}
+        luminanceSmoothing={0.35}
         mipmapBlur
       />
       <Vignette
